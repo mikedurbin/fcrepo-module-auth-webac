@@ -21,6 +21,7 @@ import static org.slf4j.LoggerFactory.getLogger;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.UUID;
 import org.fcrepo.integration.http.api.AbstractResourceIT;
 
@@ -29,6 +30,11 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.FileEntity;
 import org.apache.http.message.AbstractHttpMessage;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.InputStreamEntity;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -46,6 +52,16 @@ public class WebACRecipesIT extends AbstractResourceIT {
 
     @Before
     public void setUp() throws IOException {
+        final String credentials = "username:password";
+
+        logger.debug("setting up ACLs and authorization rules");
+
+        ingestAcl(credentials, "/acls/01/acl.ttl", "/acls/01/authorization.ttl");
+        ingestAcl(credentials, "/acls/02/acl.ttl", "/acls/02/authorization.ttl");
+        ingestAcl(credentials, "/acls/03/acl.ttl", "/acls/03/auth_open.ttl", "/acls/03/auth_restricted.ttl");
+        ingestAcl(credentials, "/acls/04/acl.ttl", "/acls/04/auth1.ttl", "/acls/04/auth2.ttl");
+        ingestAcl(credentials, "/acls/05/acl.ttl", "/acls/05/auth_open.ttl", "/acls/05/auth_restricted.ttl");
+
         logger.debug("setup complete");
     }
 
@@ -65,10 +81,61 @@ public class WebACRecipesIT extends AbstractResourceIT {
 
     protected static void setAuth(final AbstractHttpMessage method, final String username) {
         final String creds = username + ":password";
+    }
+
+    /**
+     * Convenience method to create an ACL with 0 or more authorization resources in the respository.
+     */
+    private String ingestAcl(final String credentials, final String aclResourcePath,
+            final String... authorizationResourcePaths) throws ClientProtocolException, IOException {
+
+        // create the ACL
+        final HttpResponse aclResponse = ingestTurtleResource(credentials, aclResourcePath, serverAddress);
+        System.err.println(aclResponse.getStatusLine());
+
+        // get the URI to the newly created resource
+        final String aclURI = aclResponse.getFirstHeader("Location").getValue();
+
+        // add all the authorizations
+        for (final String authorizationResourcePath : authorizationResourcePaths) {
+            final HttpResponse authzResponse = ingestTurtleResource(credentials, authorizationResourcePath, aclURI);
+            System.err.println(authzResponse.getStatusLine());
+        }
+
+        return aclURI;
+    }
+
+    /**
+     * Convenience method to POST the contents of a Turtle file to the repository to create a new resource. Returns
+     * the HTTP response from that request. Throws an IOException if the server responds with anything other than a
+     * 201 Created response code.
+     */
+    private HttpResponse ingestTurtleResource(final String credentials, final String path, final String requestURI)
+            throws IOException {
+        final HttpPost postRequest = new HttpPost(requestURI);
+
+        final String message = "POST to " + requestURI + " to create " + path;
+        logger.debug(message);
+
         // in test configuration we don't need real passwords
-        final String encCreds = new String(Base64.encodeBase64(creds.getBytes()));
+        final String encCreds = new String(Base64.encodeBase64(credentials.getBytes()));
         final String basic = "Basic " + encCreds;
-        method.setHeader("Authorization", basic);
+        postRequest.setHeader("Authorization", basic);
+
+        final InputStream file = this.getClass().getResourceAsStream(path);
+        final InputStreamEntity fileEntity = new InputStreamEntity(file);
+        postRequest.setEntity(fileEntity);
+        postRequest.setHeader("Content-Type", "text/turtle;charset=UTF-8");
+
+        // XXX: this is currently failing in the test repository with a
+        // "java.lang.VerifyError: Bad type on operand stack"
+        // see https://gist.github.com/peichman-umd/7f2eb8833ef8cd0cdfc1#gistcomment-1566271
+        final HttpResponse response = client.execute(postRequest);
+        if (response.getStatusLine().getStatusCode() != HttpStatus.SC_CREATED) {
+            throw new IOException(message + " FAILED");
+        }
+
+        return response;
     }
 
     protected static String getRandomPid() {

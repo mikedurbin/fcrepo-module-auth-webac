@@ -33,8 +33,8 @@ import org.apache.http.message.AbstractHttpMessage;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.InputStreamEntity;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -112,7 +112,7 @@ public class WebACRecipesIT extends AbstractResourceIT {
      */
     private HttpResponse ingestTurtleResource(final String credentials, final String path, final String requestURI)
             throws IOException {
-        final HttpPost postRequest = new HttpPost(requestURI);
+        final HttpPut postRequest = new HttpPut(requestURI);
 
         final String message = "POST to " + requestURI + " to create " + path;
         logger.debug(message);
@@ -131,9 +131,7 @@ public class WebACRecipesIT extends AbstractResourceIT {
         // "java.lang.VerifyError: Bad type on operand stack"
         // see https://gist.github.com/peichman-umd/7f2eb8833ef8cd0cdfc1#gistcomment-1566271
         final HttpResponse response = client.execute(postRequest);
-        if (response.getStatusLine().getStatusCode() != HttpStatus.SC_CREATED) {
-            throw new IOException(message + " FAILED");
-        }
+        Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusLine().getStatusCode());
 
         return response;
     }

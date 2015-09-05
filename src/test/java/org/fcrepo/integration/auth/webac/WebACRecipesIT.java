@@ -17,27 +17,29 @@ package org.fcrepo.integration.auth.webac;
 
 import static javax.ws.rs.core.Response.Status.CREATED;
 import static org.junit.Assert.assertEquals;
-import static org.slf4j.LoggerFactory.getLogger;
+import static org.fcrepo.auth.webac.URIConstants.WEBAC_ACCESS_CONTROL_VALUE;
+import static org.fcrepo.kernel.api.RdfLexicon.DC_NAMESPACE;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.UUID;
+import java.io.UnsupportedEncodingException;
 import org.fcrepo.integration.http.api.AbstractResourceIT;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPatch;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
-import org.apache.http.entity.FileEntity;
 import org.apache.http.message.AbstractHttpMessage;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.entity.InputStreamEntity;
-import org.junit.Assert;
-import org.junit.Before;
+import org.apache.http.entity.StringEntity;
 import org.junit.Test;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Peter Eichman
@@ -46,51 +48,18 @@ import org.slf4j.Logger;
  */
 public class WebACRecipesIT extends AbstractResourceIT {
 
-    private static Logger logger = getLogger(WebACRecipesIT.class);
+    private static final Logger logger = LoggerFactory.getLogger(WebACRecipesIT.class);
 
-    private final ClassLoader classLoader = getClass().getClassLoader();
-
-    @Before
-    public void setUp() throws IOException {
-        final String credentials = "username:password";
-
-        logger.debug("setting up ACLs and authorization rules");
-
-        ingestAcl(credentials, "/acls/01/acl.ttl", "/acls/01/authorization.ttl");
-        ingestAcl(credentials, "/acls/02/acl.ttl", "/acls/02/authorization.ttl");
-        ingestAcl(credentials, "/acls/03/acl.ttl", "/acls/03/auth_open.ttl", "/acls/03/auth_restricted.ttl");
-        ingestAcl(credentials, "/acls/04/acl.ttl", "/acls/04/auth1.ttl", "/acls/04/auth2.ttl");
-        ingestAcl(credentials, "/acls/05/acl.ttl", "/acls/05/auth_open.ttl", "/acls/05/auth_restricted.ttl");
-
-        logger.debug("setup complete");
-    }
-
-    @Test
-    public void scenario1() throws Exception {
-        logger.info("Running scenario1");
-        final String objA = getRandomPid();
-        final HttpPut method = super.putObjMethod("rest/" + objA);
-        final FileEntity acl = new FileEntity(new File(classLoader.getResource("acls/01/acl.ttl").getFile()));
-        setAuth(method, "fedoraAdmin");
-        method.setHeader("Content-type", "text/turtle");
-        method.setEntity(acl);
-        try (final CloseableHttpResponse response = super.execute(method)) {
-            assertEquals(CREATED.getStatusCode(), super.getStatus(response));
-        }
-    }
-
-    protected static void setAuth(final AbstractHttpMessage method, final String username) {
-        final String creds = username + ":password";
-    }
+    private static final String DC_TITLE = DC_NAMESPACE + "title";
 
     /**
      * Convenience method to create an ACL with 0 or more authorization resources in the respository.
      */
-    private String ingestAcl(final String credentials, final String aclResourcePath,
+    private String ingestAcl(final String username, final String aclResourcePath,
             final String... authorizationResourcePaths) throws ClientProtocolException, IOException {
 
         // create the ACL
-        final HttpResponse aclResponse = ingestTurtleResource(credentials, aclResourcePath, serverAddress);
+        final HttpResponse aclResponse = ingestTurtleResource(username, aclResourcePath, "/rest");
         System.err.println(aclResponse.getStatusLine());
 
         // get the URI to the newly created resource
@@ -98,7 +67,8 @@ public class WebACRecipesIT extends AbstractResourceIT {
 
         // add all the authorizations
         for (final String authorizationResourcePath : authorizationResourcePaths) {
-            final HttpResponse authzResponse = ingestTurtleResource(credentials, authorizationResourcePath, aclURI);
+            final HttpResponse authzResponse =
+                    ingestTurtleResource(username, authorizationResourcePath, aclURI.replace(serverAddress, ""));
             System.err.println(authzResponse.getStatusLine());
         }
 
@@ -110,33 +80,243 @@ public class WebACRecipesIT extends AbstractResourceIT {
      * the HTTP response from that request. Throws an IOException if the server responds with anything other than a
      * 201 Created response code.
      */
-    private HttpResponse ingestTurtleResource(final String credentials, final String path, final String requestURI)
+    private HttpResponse ingestTurtleResource(final String username, final String path, final String requestURI)
             throws IOException {
-        final HttpPut postRequest = new HttpPut(requestURI);
+        final HttpPost request = super.postObjMethod(requestURI);
 
         final String message = "POST to " + requestURI + " to create " + path;
         logger.debug(message);
 
-        // in test configuration we don't need real passwords
-        final String encCreds = new String(Base64.encodeBase64(credentials.getBytes()));
-        final String basic = "Basic " + encCreds;
-        postRequest.setHeader("Authorization", basic);
+        setAuth(request, username);
 
         final InputStream file = this.getClass().getResourceAsStream(path);
         final InputStreamEntity fileEntity = new InputStreamEntity(file);
-        postRequest.setEntity(fileEntity);
-        postRequest.setHeader("Content-Type", "text/turtle;charset=UTF-8");
+        request.setEntity(fileEntity);
+        request.setHeader("Content-Type", "text/turtle;charset=UTF-8");
 
-        // XXX: this is currently failing in the test repository with a
-        // "java.lang.VerifyError: Bad type on operand stack"
-        // see https://gist.github.com/peichman-umd/7f2eb8833ef8cd0cdfc1#gistcomment-1566271
-        final HttpResponse response = client.execute(postRequest);
-        Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusLine().getStatusCode());
+        try (final CloseableHttpResponse response = super.execute(request)) {
+            assertEquals("Didn't get a CREATED response!", CREATED.getStatusCode(), super.getStatus(response));
+            return response;
+        }
 
-        return response;
     }
 
-    protected static String getRandomPid() {
-        return UUID.randomUUID().toString();
+    /**
+     * Convenience method to set up a regular FedoraResource
+     *
+     * @param path Path to put the resource under
+     * @return the Location of the newly created resource
+     * @throws IOException
+     */
+    private String ingestObj(final String path) throws IOException {
+        final HttpPut request = super.putObjMethod(path.replace(serverAddress, ""));
+        setAuth(request, "fedoraAdmin");
+        try (final CloseableHttpResponse response = super.execute(request)) {
+            assertEquals(HttpStatus.SC_CREATED, response.getStatusLine().getStatusCode());
+            return response.getFirstHeader("Location").getValue();
+        }
+    }
+
+    /**
+     * Convenience method to link a Resource to a WebACL resource
+     *
+     * @param protectedResource path of the resource to be protected by the
+     * @param aclResource path of the Acl resource
+     * @throws UnsupportedEncodingException
+     */
+    private void linkToAcl(final String protectedResource, final String aclResource)
+            throws UnsupportedEncodingException {
+        final HttpPatch request = super.patchObjMethod(protectedResource.replace(serverAddress, ""));
+        setAuth(request, "fedoraAdmin");
+        request.setHeader("Content-type", "application/sparql-update");
+        request.setEntity(new StringEntity(
+                "INSERT { <> <" + WEBAC_ACCESS_CONTROL_VALUE + "> <" + aclResource + "> . } WHERE {}"));
+    }
+
+    /**
+     * Convenience method for applying credentials to a request
+     *
+     * @param method the request to add the credentials to
+     * @param username the username to add
+     */
+    private static void setAuth(final AbstractHttpMessage method, final String username) {
+        final String creds = username + ":password";
+        final String encCreds = new String(Base64.encodeBase64(creds.getBytes()));
+        final String basic = "Basic " + encCreds;
+        method.setHeader("Authorization", basic);
+    }
+
+    @Test
+    public void scenario1() throws IOException {
+        final String acl1 = ingestAcl("fedoraAdmin", "/acls/01/acl.ttl", "/acls/01/authorization.ttl");
+        final String testObj = ingestObj("/rest/webacl_box1");
+        linkToAcl(testObj, acl1);
+
+        logger.debug("Anonymous can't read");
+        final HttpGet request = super.getObjMethod(testObj.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = super.execute(request)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        }
+
+        logger.debug("Can username 'smith123' read " + testObj);
+        setAuth(request, "smith123");
+        try (final CloseableHttpResponse response = super.execute(request)) {
+            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        }
+    }
+
+    @Test
+    public void scenario2() throws IOException {
+        final String acl2 = ingestAcl("fedoraAdmin", "/acls/02/acl.ttl", "/acls/02/authorization.ttl");
+        final String testObj = ingestObj("/rest/box/bag/collection");
+        linkToAcl(testObj, acl2);
+
+        logger.debug("Anonymous can not read " + testObj);
+        final HttpGet request = super.getObjMethod(testObj.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = super.execute(request)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        }
+
+        logger.debug("GroupId 'Editors' can read " + testObj);
+        setAuth(request, "Editors");
+        try (final CloseableHttpResponse response = super.execute(request)) {
+            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        }
+
+        logger.debug("Anonymous cannot write " + testObj);
+        final HttpPatch patch = super.patchObjMethod(testObj.replace(serverAddress, ""));
+        patch.setEntity(new StringEntity("INSERT { <> <" + DC_TITLE + "> \"Test title\" . } WHERE {}"));
+        patch.setHeader("Content-type", "application/sparql-update");
+        try (final CloseableHttpResponse response = super.execute(request)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        }
+
+        logger.debug("Editors can write " + testObj);
+        setAuth(patch, "Editors");
+        try (final CloseableHttpResponse response = super.execute(request)) {
+            assertEquals(HttpStatus.SC_NO_CONTENT, super.getStatus(response));
+        }
+
+    }
+
+    @Test
+    public void scenario3() throws IOException {
+        final String acl3 =
+                ingestAcl("fedoraAdmin", "/acls/03/acl.ttl", "/acls/03/auth_open.ttl", "/acls/03/auth_restricted.ttl");
+        final String testObj = ingestObj("/rest/dark/archive");
+        final String testObj2 = ingestObj("/rest/dark/archive/sunshine");
+        linkToAcl(testObj, acl3);
+
+        logger.debug("Anonymous can't read " + testObj);
+        final HttpGet request1 = super.getObjMethod(testObj.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = super.execute(request1)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        }
+
+        logger.debug("Restricted can read " + testObj);
+        setAuth(request1, "Restricted");
+        try (final CloseableHttpResponse response = super.execute(request1)) {
+            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        }
+
+        logger.debug("Anonymous can read " + testObj2);
+        final HttpGet request2 = super.getObjMethod(testObj2.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = super.execute(request1)) {
+            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        }
+
+        logger.debug("Restricted can read " + testObj2);
+        setAuth(request2, "Restricted");
+        try (final CloseableHttpResponse response = super.execute(request1)) {
+            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        }
+    }
+
+    @Test
+    public void scenario4() throws IOException {
+        final String acl4 = ingestAcl("fedoraAdmin", "/acls/04/acl.ttl", "/acls/04/auth1.ttl", "/acls/04/auth2.ttl");
+        final String testObj = ingestObj("/rest/public_collection");
+        linkToAcl(testObj, acl4);
+
+        logger.debug("Anonymous can read " + testObj);
+        final HttpGet request = super.getObjMethod(testObj.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = super.execute(request)) {
+            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        }
+
+        logger.debug("Editors can read " + testObj);
+        setAuth(request, "Editors");
+        try (final CloseableHttpResponse response = super.execute(request)) {
+            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        }
+
+        logger.debug("Smith can't access " + testObj);
+        setAuth(request, "smith");
+        try (final CloseableHttpResponse response = super.execute(request)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        }
+
+        logger.debug("Anonymous can't write " + testObj);
+        final HttpPatch patch = super.patchObjMethod(testObj.replace(serverAddress, ""));
+        patch.setHeader("Content-type", "application/sparql-update");
+        patch.setEntity(new StringEntity("INSERT { <> <" + DC_TITLE + "> \"Change title\" . } WHERE {}"));
+        try (final CloseableHttpResponse response = super.execute(patch)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        }
+
+        logger.debug("Editors can write " + testObj);
+        setAuth(patch, "Editors");
+        try (final CloseableHttpResponse response = super.execute(patch)) {
+            assertEquals(HttpStatus.SC_NO_CONTENT, super.getStatus(response));
+        }
+
+        logger.debug("Smith can't write " + testObj);
+        setAuth(patch, "smith");
+        try (final CloseableHttpResponse response = super.execute(patch)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        }
+
+    }
+
+    @Test
+    public void scenario5() throws IOException {
+        final String acl5 =
+                ingestAcl("fedoraAdmin", "/acls/05/acl.ttl", "/acls/05/auth_open.ttl", "/acls/05/auth_restricted.ttl");
+        final String testObj = ingestObj("/rest/mixedCollection");
+        linkToAcl(testObj, acl5);
+        final String publicObj = ingestObj("/rest/mixedCollection/publicObj");
+        final HttpPatch patch = super.patchObjMethod("/rest/mixedCollection/publicObj");
+        setAuth(patch, "fedoraAdmin");
+        patch.setHeader("Content-type", "application/sparql-update");
+        patch.setEntity(new StringEntity("INSERT { <> a <http://example.com/terms#publicImage> . } WHERE {}"));
+        try (final CloseableHttpResponse response = super.execute(patch)) {
+            assertEquals(HttpStatus.SC_NO_CONTENT, super.getStatus(response));
+        }
+        final String privateObj = ingestObj("/rest/mixedCollection/privateObj");
+
+        logger.debug("Anonymous can see eg:publicImage " + publicObj);
+        final HttpGet request1 = super.getObjMethod(publicObj.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = super.execute(request1)) {
+            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        }
+
+        logger.debug("Anonymous can't see other resource " + privateObj);
+        final HttpGet request2 = super.getObjMethod(privateObj.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = super.execute(request2)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        }
+
+        logger.debug("Admins can see eg:publicImage " + publicObj);
+        setAuth(request1, "Admins");
+        try (final CloseableHttpResponse response = super.execute(request1)) {
+            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        }
+
+        logger.debug("Admins can see others" + privateObj);
+        setAuth(request2, "Admins");
+        try (final CloseableHttpResponse response = super.execute(request2)) {
+            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        }
+
     }
 }

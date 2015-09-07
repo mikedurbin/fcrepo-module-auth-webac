@@ -125,12 +125,15 @@ public class WebACRecipesIT extends AbstractResourceIT {
      * @throws UnsupportedEncodingException
      */
     private void linkToAcl(final String protectedResource, final String aclResource)
-            throws UnsupportedEncodingException {
+            throws UnsupportedEncodingException, IOException {
         final HttpPatch request = super.patchObjMethod(protectedResource.replace(serverAddress, ""));
         setAuth(request, "fedoraAdmin");
         request.setHeader("Content-type", "application/sparql-update");
         request.setEntity(new StringEntity(
                 "INSERT { <> <" + WEBAC_ACCESS_CONTROL_VALUE + "> <" + aclResource + "> . } WHERE {}"));
+        try (final CloseableHttpResponse response = super.execute(request)) {
+            assertEquals(HttpStatus.SC_NO_CONTENT, response.getStatusLine().getStatusCode());
+        }
     }
 
     /**

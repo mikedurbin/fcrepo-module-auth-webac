@@ -146,8 +146,8 @@ public class WebACRecipesIT extends AbstractResourceIT {
 
     @Test
     public void scenario1() throws IOException {
-        final String acl1 = ingestAcl("fedoraAdmin", "/acls/01/acl.ttl", "/acls/01/authorization.ttl");
         final String testObj = ingestObj("/rest/webacl_box1");
+        final String acl1 = ingestAcl("fedoraAdmin", "/acls/01/acl.ttl", "/acls/01/authorization.ttl");
         linkToAcl(testObj, acl1);
 
         logger.debug("Anonymous can't read");
@@ -165,8 +165,8 @@ public class WebACRecipesIT extends AbstractResourceIT {
 
     @Test
     public void scenario2() throws IOException {
-        final String acl2 = ingestAcl("fedoraAdmin", "/acls/02/acl.ttl", "/acls/02/authorization.ttl");
         final String testObj = ingestObj("/rest/box/bag/collection");
+        final String acl2 = ingestAcl("fedoraAdmin", "/acls/02/acl.ttl", "/acls/02/authorization.ttl");
         linkToAcl(testObj, acl2);
 
         logger.debug("Anonymous can not read " + testObj);
@@ -185,13 +185,13 @@ public class WebACRecipesIT extends AbstractResourceIT {
         final HttpPatch patch = patchObjMethod(testObj.replace(serverAddress, ""));
         patch.setEntity(new StringEntity("INSERT { <> <" + DC_TITLE + "> \"Test title\" . } WHERE {}"));
         patch.setHeader("Content-type", "application/sparql-update");
-        try (final CloseableHttpResponse response = execute(request)) {
+        try (final CloseableHttpResponse response = execute(patch)) {
             assertEquals(HttpStatus.SC_FORBIDDEN, getStatus(response));
         }
 
         logger.debug("Editors can write " + testObj);
         setAuth(patch, "Editors");
-        try (final CloseableHttpResponse response = execute(request)) {
+        try (final CloseableHttpResponse response = execute(patch)) {
             assertEquals(HttpStatus.SC_NO_CONTENT, getStatus(response));
         }
 
@@ -199,10 +199,10 @@ public class WebACRecipesIT extends AbstractResourceIT {
 
     @Test
     public void scenario3() throws IOException {
-        final String acl3 =
-                ingestAcl("fedoraAdmin", "/acls/03/acl.ttl", "/acls/03/auth_open.ttl", "/acls/03/auth_restricted.ttl");
         final String testObj = ingestObj("/rest/dark/archive");
         final String testObj2 = ingestObj("/rest/dark/archive/sunshine");
+        final String acl3 =
+                ingestAcl("fedoraAdmin", "/acls/03/acl.ttl", "/acls/03/auth_open.ttl", "/acls/03/auth_restricted.ttl");
         linkToAcl(testObj, acl3);
 
         logger.debug("Anonymous can't read " + testObj);
@@ -232,8 +232,8 @@ public class WebACRecipesIT extends AbstractResourceIT {
 
     @Test
     public void scenario4() throws IOException {
-        final String acl4 = ingestAcl("fedoraAdmin", "/acls/04/acl.ttl", "/acls/04/auth1.ttl", "/acls/04/auth2.ttl");
         final String testObj = ingestObj("/rest/public_collection");
+        final String acl4 = ingestAcl("fedoraAdmin", "/acls/04/acl.ttl", "/acls/04/auth1.ttl", "/acls/04/auth2.ttl");
         linkToAcl(testObj, acl4);
 
         logger.debug("Anonymous can read " + testObj);
@@ -248,10 +248,11 @@ public class WebACRecipesIT extends AbstractResourceIT {
             assertEquals(HttpStatus.SC_OK, getStatus(response));
         }
 
-        logger.debug("Smith can't access " + testObj);
-        setAuth(request, "smith");
-        try (final CloseableHttpResponse response = execute(request)) {
-            assertEquals(HttpStatus.SC_FORBIDDEN, getStatus(response));
+        logger.debug("Smith can access " + testObj);
+        final HttpGet request2 = getObjMethod(testObj.replace(serverAddress, ""));
+        setAuth(request2, "smith");
+        try (final CloseableHttpResponse response = execute(request2)) {
+            assertEquals(HttpStatus.SC_OK, getStatus(response));
         }
 
         logger.debug("Anonymous can't write " + testObj);
@@ -269,8 +270,11 @@ public class WebACRecipesIT extends AbstractResourceIT {
         }
 
         logger.debug("Smith can't write " + testObj);
-        setAuth(patch, "smith");
-        try (final CloseableHttpResponse response = execute(patch)) {
+        final HttpPatch patch2 = patchObjMethod(testObj.replace(serverAddress, ""));
+        patch2.setHeader("Content-type", "application/sparql-update");
+        patch2.setEntity(new StringEntity("INSERT { <> <" + DC_TITLE + "> \"Change title\" . } WHERE {}"));
+        setAuth(patch2, "smith");
+        try (final CloseableHttpResponse response = execute(patch2)) {
             assertEquals(HttpStatus.SC_FORBIDDEN, getStatus(response));
         }
 
@@ -278,12 +282,13 @@ public class WebACRecipesIT extends AbstractResourceIT {
 
     @Test
     public void scenario5() throws IOException {
-        final String acl5 =
-                ingestAcl("fedoraAdmin", "/acls/05/acl.ttl", "/acls/05/auth_open.ttl", "/acls/05/auth_restricted.ttl");
         final String testObj = ingestObj("/rest/mixedCollection");
-        linkToAcl(testObj, acl5);
         final String publicObj = ingestObj("/rest/mixedCollection/publicObj");
         final HttpPatch patch = patchObjMethod("/rest/mixedCollection/publicObj");
+        final String acl5 =
+                ingestAcl("fedoraAdmin", "/acls/05/acl.ttl", "/acls/05/auth_open.ttl", "/acls/05/auth_restricted.ttl");
+        linkToAcl(testObj, acl5);
+
         setAuth(patch, "fedoraAdmin");
         patch.setHeader("Content-type", "application/sparql-update");
         patch.setEntity(new StringEntity("INSERT { <> a <http://example.com/terms#publicImage> . } WHERE {}"));

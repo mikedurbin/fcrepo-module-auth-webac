@@ -34,7 +34,6 @@ import org.apache.http.client.methods.HttpPut;
 import org.apache.http.message.AbstractHttpMessage;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
 import org.junit.Test;
@@ -56,20 +55,17 @@ public class WebACRecipesIT extends AbstractResourceIT {
      * Convenience method to create an ACL with 0 or more authorization resources in the respository.
      */
     private String ingestAcl(final String username, final String aclResourcePath,
-            final String... authorizationResourcePaths) throws ClientProtocolException, IOException {
+            final String... authorizationResourcePaths) throws IOException {
 
         // create the ACL
         final HttpResponse aclResponse = ingestTurtleResource(username, aclResourcePath, "/rest");
-        System.err.println(aclResponse.getStatusLine());
 
         // get the URI to the newly created resource
         final String aclURI = aclResponse.getFirstHeader("Location").getValue();
 
         // add all the authorizations
         for (final String authorizationResourcePath : authorizationResourcePaths) {
-            final HttpResponse authzResponse =
-                    ingestTurtleResource(username, authorizationResourcePath, aclURI.replace(serverAddress, ""));
-            System.err.println(authzResponse.getStatusLine());
+            ingestTurtleResource(username, authorizationResourcePath, aclURI.replace(serverAddress, ""));
         }
 
         return aclURI;
@@ -82,10 +78,9 @@ public class WebACRecipesIT extends AbstractResourceIT {
      */
     private HttpResponse ingestTurtleResource(final String username, final String path, final String requestURI)
             throws IOException {
-        final HttpPost request = super.postObjMethod(requestURI);
+        final HttpPost request = postObjMethod(requestURI);
 
-        final String message = "POST to " + requestURI + " to create " + path;
-        logger.debug(message);
+        logger.debug("POST to {} to create {}", requestURI, path);
 
         setAuth(request, username);
 
@@ -94,8 +89,8 @@ public class WebACRecipesIT extends AbstractResourceIT {
         request.setEntity(fileEntity);
         request.setHeader("Content-Type", "text/turtle;charset=UTF-8");
 
-        try (final CloseableHttpResponse response = super.execute(request)) {
-            assertEquals("Didn't get a CREATED response!", CREATED.getStatusCode(), super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(request)) {
+            assertEquals("Didn't get a CREATED response!", CREATED.getStatusCode(), getStatus(response));
             return response;
         }
 
@@ -109,9 +104,9 @@ public class WebACRecipesIT extends AbstractResourceIT {
      * @throws IOException
      */
     private String ingestObj(final String path) throws IOException {
-        final HttpPut request = super.putObjMethod(path.replace(serverAddress, ""));
+        final HttpPut request = putObjMethod(path.replace(serverAddress, ""));
         setAuth(request, "fedoraAdmin");
-        try (final CloseableHttpResponse response = super.execute(request)) {
+        try (final CloseableHttpResponse response = execute(request)) {
             assertEquals(HttpStatus.SC_CREATED, response.getStatusLine().getStatusCode());
             return response.getFirstHeader("Location").getValue();
         }
@@ -125,13 +120,13 @@ public class WebACRecipesIT extends AbstractResourceIT {
      * @throws UnsupportedEncodingException
      */
     private void linkToAcl(final String protectedResource, final String aclResource)
-            throws UnsupportedEncodingException, IOException {
-        final HttpPatch request = super.patchObjMethod(protectedResource.replace(serverAddress, ""));
+            throws IOException {
+        final HttpPatch request = patchObjMethod(protectedResource.replace(serverAddress, ""));
         setAuth(request, "fedoraAdmin");
         request.setHeader("Content-type", "application/sparql-update");
         request.setEntity(new StringEntity(
                 "INSERT { <> <" + WEBAC_ACCESS_CONTROL_VALUE + "> <" + aclResource + "> . } WHERE {}"));
-        try (final CloseableHttpResponse response = super.execute(request)) {
+        try (final CloseableHttpResponse response = execute(request)) {
             assertEquals(HttpStatus.SC_NO_CONTENT, response.getStatusLine().getStatusCode());
         }
     }
@@ -156,15 +151,15 @@ public class WebACRecipesIT extends AbstractResourceIT {
         linkToAcl(testObj, acl1);
 
         logger.debug("Anonymous can't read");
-        final HttpGet request = super.getObjMethod(testObj.replace(serverAddress, ""));
-        try (final CloseableHttpResponse response = super.execute(request)) {
-            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        final HttpGet request = getObjMethod(testObj.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = execute(request)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, getStatus(response));
         }
 
         logger.debug("Can username 'smith123' read " + testObj);
         setAuth(request, "smith123");
-        try (final CloseableHttpResponse response = super.execute(request)) {
-            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(request)) {
+            assertEquals(HttpStatus.SC_OK, getStatus(response));
         }
     }
 
@@ -175,29 +170,29 @@ public class WebACRecipesIT extends AbstractResourceIT {
         linkToAcl(testObj, acl2);
 
         logger.debug("Anonymous can not read " + testObj);
-        final HttpGet request = super.getObjMethod(testObj.replace(serverAddress, ""));
-        try (final CloseableHttpResponse response = super.execute(request)) {
-            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        final HttpGet request = getObjMethod(testObj.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = execute(request)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, getStatus(response));
         }
 
         logger.debug("GroupId 'Editors' can read " + testObj);
         setAuth(request, "Editors");
-        try (final CloseableHttpResponse response = super.execute(request)) {
-            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(request)) {
+            assertEquals(HttpStatus.SC_OK, getStatus(response));
         }
 
         logger.debug("Anonymous cannot write " + testObj);
-        final HttpPatch patch = super.patchObjMethod(testObj.replace(serverAddress, ""));
+        final HttpPatch patch = patchObjMethod(testObj.replace(serverAddress, ""));
         patch.setEntity(new StringEntity("INSERT { <> <" + DC_TITLE + "> \"Test title\" . } WHERE {}"));
         patch.setHeader("Content-type", "application/sparql-update");
-        try (final CloseableHttpResponse response = super.execute(request)) {
-            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(request)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, getStatus(response));
         }
 
         logger.debug("Editors can write " + testObj);
         setAuth(patch, "Editors");
-        try (final CloseableHttpResponse response = super.execute(request)) {
-            assertEquals(HttpStatus.SC_NO_CONTENT, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(request)) {
+            assertEquals(HttpStatus.SC_NO_CONTENT, getStatus(response));
         }
 
     }
@@ -211,27 +206,27 @@ public class WebACRecipesIT extends AbstractResourceIT {
         linkToAcl(testObj, acl3);
 
         logger.debug("Anonymous can't read " + testObj);
-        final HttpGet request1 = super.getObjMethod(testObj.replace(serverAddress, ""));
-        try (final CloseableHttpResponse response = super.execute(request1)) {
-            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        final HttpGet request1 = getObjMethod(testObj.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = execute(request1)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, getStatus(response));
         }
 
         logger.debug("Restricted can read " + testObj);
         setAuth(request1, "Restricted");
-        try (final CloseableHttpResponse response = super.execute(request1)) {
-            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(request1)) {
+            assertEquals(HttpStatus.SC_OK, getStatus(response));
         }
 
         logger.debug("Anonymous can read " + testObj2);
-        final HttpGet request2 = super.getObjMethod(testObj2.replace(serverAddress, ""));
-        try (final CloseableHttpResponse response = super.execute(request1)) {
-            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        final HttpGet request2 = getObjMethod(testObj2.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = execute(request1)) {
+            assertEquals(HttpStatus.SC_OK, getStatus(response));
         }
 
         logger.debug("Restricted can read " + testObj2);
         setAuth(request2, "Restricted");
-        try (final CloseableHttpResponse response = super.execute(request1)) {
-            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(request1)) {
+            assertEquals(HttpStatus.SC_OK, getStatus(response));
         }
     }
 
@@ -242,41 +237,41 @@ public class WebACRecipesIT extends AbstractResourceIT {
         linkToAcl(testObj, acl4);
 
         logger.debug("Anonymous can read " + testObj);
-        final HttpGet request = super.getObjMethod(testObj.replace(serverAddress, ""));
-        try (final CloseableHttpResponse response = super.execute(request)) {
-            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        final HttpGet request = getObjMethod(testObj.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = execute(request)) {
+            assertEquals(HttpStatus.SC_OK, getStatus(response));
         }
 
         logger.debug("Editors can read " + testObj);
         setAuth(request, "Editors");
-        try (final CloseableHttpResponse response = super.execute(request)) {
-            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(request)) {
+            assertEquals(HttpStatus.SC_OK, getStatus(response));
         }
 
         logger.debug("Smith can't access " + testObj);
         setAuth(request, "smith");
-        try (final CloseableHttpResponse response = super.execute(request)) {
-            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(request)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, getStatus(response));
         }
 
         logger.debug("Anonymous can't write " + testObj);
-        final HttpPatch patch = super.patchObjMethod(testObj.replace(serverAddress, ""));
+        final HttpPatch patch = patchObjMethod(testObj.replace(serverAddress, ""));
         patch.setHeader("Content-type", "application/sparql-update");
         patch.setEntity(new StringEntity("INSERT { <> <" + DC_TITLE + "> \"Change title\" . } WHERE {}"));
-        try (final CloseableHttpResponse response = super.execute(patch)) {
-            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(patch)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, getStatus(response));
         }
 
         logger.debug("Editors can write " + testObj);
         setAuth(patch, "Editors");
-        try (final CloseableHttpResponse response = super.execute(patch)) {
-            assertEquals(HttpStatus.SC_NO_CONTENT, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(patch)) {
+            assertEquals(HttpStatus.SC_NO_CONTENT, getStatus(response));
         }
 
         logger.debug("Smith can't write " + testObj);
         setAuth(patch, "smith");
-        try (final CloseableHttpResponse response = super.execute(patch)) {
-            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(patch)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, getStatus(response));
         }
 
     }
@@ -288,37 +283,37 @@ public class WebACRecipesIT extends AbstractResourceIT {
         final String testObj = ingestObj("/rest/mixedCollection");
         linkToAcl(testObj, acl5);
         final String publicObj = ingestObj("/rest/mixedCollection/publicObj");
-        final HttpPatch patch = super.patchObjMethod("/rest/mixedCollection/publicObj");
+        final HttpPatch patch = patchObjMethod("/rest/mixedCollection/publicObj");
         setAuth(patch, "fedoraAdmin");
         patch.setHeader("Content-type", "application/sparql-update");
         patch.setEntity(new StringEntity("INSERT { <> a <http://example.com/terms#publicImage> . } WHERE {}"));
-        try (final CloseableHttpResponse response = super.execute(patch)) {
-            assertEquals(HttpStatus.SC_NO_CONTENT, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(patch)) {
+            assertEquals(HttpStatus.SC_NO_CONTENT, getStatus(response));
         }
         final String privateObj = ingestObj("/rest/mixedCollection/privateObj");
 
         logger.debug("Anonymous can see eg:publicImage " + publicObj);
-        final HttpGet request1 = super.getObjMethod(publicObj.replace(serverAddress, ""));
-        try (final CloseableHttpResponse response = super.execute(request1)) {
-            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        final HttpGet request1 = getObjMethod(publicObj.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = execute(request1)) {
+            assertEquals(HttpStatus.SC_OK, getStatus(response));
         }
 
         logger.debug("Anonymous can't see other resource " + privateObj);
-        final HttpGet request2 = super.getObjMethod(privateObj.replace(serverAddress, ""));
-        try (final CloseableHttpResponse response = super.execute(request2)) {
-            assertEquals(HttpStatus.SC_FORBIDDEN, super.getStatus(response));
+        final HttpGet request2 = getObjMethod(privateObj.replace(serverAddress, ""));
+        try (final CloseableHttpResponse response = execute(request2)) {
+            assertEquals(HttpStatus.SC_FORBIDDEN, getStatus(response));
         }
 
         logger.debug("Admins can see eg:publicImage " + publicObj);
         setAuth(request1, "Admins");
-        try (final CloseableHttpResponse response = super.execute(request1)) {
-            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(request1)) {
+            assertEquals(HttpStatus.SC_OK, getStatus(response));
         }
 
         logger.debug("Admins can see others" + privateObj);
         setAuth(request2, "Admins");
-        try (final CloseableHttpResponse response = super.execute(request2)) {
-            assertEquals(HttpStatus.SC_OK, super.getStatus(response));
+        try (final CloseableHttpResponse response = execute(request2)) {
+            assertEquals(HttpStatus.SC_OK, getStatus(response));
         }
 
     }

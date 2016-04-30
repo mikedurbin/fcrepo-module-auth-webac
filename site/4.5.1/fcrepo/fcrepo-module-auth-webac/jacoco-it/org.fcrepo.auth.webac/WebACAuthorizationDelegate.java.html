@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>WebACAuthorizationDelegate.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Fedora Repository WebAC Authorization Module</a> &gt; <a href="index.source.html" class="el_package">org.fcrepo.auth.webac</a> &gt; <span class="el_source">WebACAuthorizationDelegate.java</span></div><h1>WebACAuthorizationDelegate.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2015 DuraSpace, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.fcrepo.auth.webac;
+
+import static java.util.Arrays.stream;
+import static java.util.Collections.unmodifiableMap;
+import static org.fcrepo.auth.webac.URIConstants.FOAF_AGENT_VALUE;
+import static org.fcrepo.auth.webac.URIConstants.WEBAC_MODE_CONTROL_VALUE;
+import static org.fcrepo.auth.webac.URIConstants.WEBAC_MODE_READ_VALUE;
+import static org.fcrepo.auth.webac.URIConstants.WEBAC_MODE_WRITE_VALUE;
+import static org.modeshape.jcr.ModeShapePermissions.ADD_NODE;
+import static org.modeshape.jcr.ModeShapePermissions.MODIFY_ACCESS_CONTROL;
+import static org.modeshape.jcr.ModeShapePermissions.READ;
+import static org.modeshape.jcr.ModeShapePermissions.READ_ACCESS_CONTROL;
+import static org.modeshape.jcr.ModeShapePermissions.REGISTER_NAMESPACE;
+import static org.modeshape.jcr.ModeShapePermissions.REMOVE;
+import static org.modeshape.jcr.ModeShapePermissions.REMOVE_CHILD_NODES;
+import static org.modeshape.jcr.ModeShapePermissions.SET_PROPERTY;
+
+import java.security.Principal;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
+import javax.jcr.Session;
+
+import org.fcrepo.auth.roles.common.AbstractRolesAuthorizationDelegate;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Authorization Delegate responsible for resolving Fedora's permissions using Web Access Control (WebAC) access
+ * control lists.
+ *
+ * @author Peter Eichman
+ * @since Aug 24, 2015
+ */
+<span class="fc" id="L52">public class WebACAuthorizationDelegate extends AbstractRolesAuthorizationDelegate {</span>
+
+    /**
+     * Class-level logger.
+     */
+<span class="fc" id="L57">    private static final Logger LOGGER = LoggerFactory.getLogger(WebACAuthorizationDelegate.class);</span>
+
+    private static final Map&lt;String, String&gt; actionMap;
+
+    static {
+<span class="fc" id="L62">        final Map&lt;String, String&gt; map = new HashMap&lt;&gt;();</span>
+        // WEBAC_MODE_READ Permissions
+<span class="fc" id="L64">        map.put(READ, WEBAC_MODE_READ_VALUE);</span>
+        // WEBAC_MODE_WRITE Permissions
+<span class="fc" id="L66">        map.put(ADD_NODE, WEBAC_MODE_WRITE_VALUE);</span>
+<span class="fc" id="L67">        map.put(REGISTER_NAMESPACE, WEBAC_MODE_WRITE_VALUE);</span>
+<span class="fc" id="L68">        map.put(REMOVE, WEBAC_MODE_WRITE_VALUE);</span>
+<span class="fc" id="L69">        map.put(REMOVE_CHILD_NODES, WEBAC_MODE_WRITE_VALUE);</span>
+<span class="fc" id="L70">        map.put(SET_PROPERTY, WEBAC_MODE_WRITE_VALUE);</span>
+        // WEBAC_MODE_CONTROL Permissions
+<span class="fc" id="L72">        map.put(MODIFY_ACCESS_CONTROL, WEBAC_MODE_CONTROL_VALUE);</span>
+<span class="fc" id="L73">        map.put(READ_ACCESS_CONTROL, WEBAC_MODE_CONTROL_VALUE);</span>
+<span class="fc" id="L74">        actionMap = unmodifiableMap(map);</span>
+    }
+
+    /**
+     * The security principal for every request, that represents the foaf:Agent agent class that is used to designate
+     * &quot;everyone&quot;.
+     */
+<span class="fc" id="L81">    private static final Principal EVERYONE = new Principal() {</span>
+
+        @Override
+        public String getName() {
+<span class="fc" id="L85">            return FOAF_AGENT_VALUE;</span>
+        }
+
+        @Override
+        public String toString() {
+<span class="nc" id="L90">            return getName();</span>
+        }
+
+    };
+
+    @Override
+    public boolean rolesHavePermission(final Session userSession, final String absPath,
+            final String[] actions, final Set&lt;String&gt; roles) {
+
+        /*
+         * If any value in the actions Array is NOT also in the roles Set, the request should be denied.
+         * Otherwise, e.g. all of the actions values are contained in the roles set, the request is approved.
+         *
+         * The logic here may not be immediately obvious. The process is thus:
+         *   map: map the modeshape action to a webac action
+         *   allMatch: verify that ALL actions MUST exist in the roles Set
+         */
+<span class="fc" id="L107">        final boolean permit = stream(actions).map(actionMap::get).allMatch(roles::contains);</span>
+
+<span class="fc" id="L109">        LOGGER.debug(&quot;Request for actions: {}, on path: {}, with roles: {}. Permission={}&quot;,</span>
+<span class="fc" id="L110">                actions, absPath, roles, permit);</span>
+
+<span class="fc" id="L112">        return permit;</span>
+    }
+
+    @Override
+    public Principal getEveryonePrincipal() {
+<span class="fc" id="L117">        return EVERYONE;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

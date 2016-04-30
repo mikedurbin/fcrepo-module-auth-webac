@@ -1,0 +1,8 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+Fedora Repository WebAC Authorization Module,org.fcrepo.auth.webac,LinkHeaderProvider,0,89,1,1,0,19,1,5,0,5
+Fedora Repository WebAC Authorization Module,org.fcrepo.auth.webac,WebACAuthorizationDelegate,0,99,0,0,0,18,0,4,0,4
+Fedora Repository WebAC Authorization Module,org.fcrepo.auth.webac,URIConstants,3,55,0,0,2,18,1,1,1,1
+Fedora Repository WebAC Authorization Module,org.fcrepo.auth.webac,WebACRolesProvider,132,737,20,36,28,147,19,53,3,41
+Fedora Repository WebAC Authorization Module,org.fcrepo.auth.webac,ACLHandle,0,9,0,0,0,4,0,1,0,1
+Fedora Repository WebAC Authorization Module,org.fcrepo.auth.webac,WebACAuthorization,0,68,0,0,0,17,0,6,0,6
+Fedora Repository WebAC Authorization Module,org.fcrepo.auth.webac,WebACAuthorizationDelegate.new Principal() {...},3,5,0,0,1,2,1,2,1,2

@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>URIConstants.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Fedora Repository WebAC Authorization Module</a> &gt; <a href="index.source.html" class="el_package">org.fcrepo.auth.webac</a> &gt; <span class="el_source">URIConstants.java</span></div><h1>URIConstants.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2015 DuraSpace, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.fcrepo.auth.webac;
+
+import java.net.URI;
+
+/**
+ * URIs used by the WebAC module.
+ *
+ * @author Peter Eichman
+ * @author whikloj
+ * @since Aug 25, 2015
+ * @see &lt;a href=&quot;http://www.w3.org/wiki/WebAccessControl/Vocabulary&quot;&gt;
+ *      http://www.w3.org/wiki/WebAccessControl/Vocabulary&lt;/a&gt;
+ * @see &lt;a href=&quot;http://www.w3.org/ns/auth/acl&quot;&gt;http://www.w3.org/ns/auth/acl&lt;/a&gt;
+ * @see &lt;a href=&quot;http://fedora.info/definitions/v4/webac&quot;&gt;http://fedora.info/definitions/v4/webac&lt;/a&gt;
+ */
+final public class URIConstants {
+
+    /**
+     * Namespace for the W3C WebAC vocabulary.
+     */
+    public static final String WEBAC_NAMESPACE_VALUE = &quot;http://www.w3.org/ns/auth/acl#&quot;;
+
+    /**
+     * Namespace for the W3C WebAC vocabulary.
+     */
+<span class="fc" id="L41">    public static final URI WEBAC_NAMESPACE = URI.create(WEBAC_NAMESPACE_VALUE);</span>
+
+    /**
+     * Read access mode.
+     */
+    public static final String WEBAC_MODE_READ_VALUE = WEBAC_NAMESPACE_VALUE + &quot;Read&quot;;
+
+    /**
+     * Read access mode.
+     */
+<span class="fc" id="L51">    public static final URI WEBAC_MODE_READ = URI.create(WEBAC_MODE_READ_VALUE);</span>
+
+    /**
+     * Write access mode.
+     */
+    public static final String WEBAC_MODE_WRITE_VALUE = WEBAC_NAMESPACE_VALUE + &quot;Write&quot;;
+
+    /**
+     * Write access mode.
+     */
+<span class="fc" id="L61">    public static final URI WEBAC_MODE_WRITE = URI.create(WEBAC_MODE_WRITE_VALUE);</span>
+
+    /**
+     * Append access mode.
+     */
+    public static final String WEBAC_MODE_APPEND_VALUE = WEBAC_NAMESPACE_VALUE + &quot;Append&quot;;
+
+    /**
+     * Append access mode.
+     */
+<span class="fc" id="L71">    public static final URI WEBAC_MODE_APPEND = URI.create(WEBAC_MODE_APPEND_VALUE);</span>
+
+    /**
+     * Control access mode.
+     */
+    public static final String WEBAC_MODE_CONTROL_VALUE = WEBAC_NAMESPACE_VALUE + &quot;Control&quot;;
+
+    /**
+     * Control access mode.
+     */
+<span class="fc" id="L81">    public static final URI WEBAC_MODE_CONTROL = URI.create(WEBAC_MODE_CONTROL_VALUE);</span>
+
+    /**
+     * Authorization class.
+     */
+    public static final String WEBAC_AUTHORIZATION_VALUE = WEBAC_NAMESPACE_VALUE + &quot;Authorization&quot;;
+<span class="fc" id="L87">    public static final URI WEBAC_AUTHORIZATION = URI.create(WEBAC_AUTHORIZATION_VALUE);</span>
+
+    /**
+     * WebAC agent
+     */
+    public static final String WEBAC_AGENT_VALUE = WEBAC_NAMESPACE_VALUE + &quot;agent&quot;;
+<span class="fc" id="L93">    public static final URI WEBAC_AGENT = URI.create(WEBAC_AGENT_VALUE);</span>
+
+    /**
+     * WebAC agentClass
+     */
+    public static final String WEBAC_AGENT_CLASS_VALUE = WEBAC_NAMESPACE_VALUE + &quot;agentClass&quot;;
+<span class="fc" id="L99">    public static final URI WEBAC_AGENT_CLASS = URI.create(WEBAC_AGENT_CLASS_VALUE);</span>
+
+    /**
+     * WebAC accessTo
+     */
+    public static final String WEBAC_ACCESSTO_VALUE = WEBAC_NAMESPACE_VALUE + &quot;accessTo&quot;;
+<span class="fc" id="L105">    public static final URI WEBAC_ACCESSTO = URI.create(WEBAC_ACCESSTO_VALUE);</span>
+
+    /**
+     * WebAC accessToClass
+     */
+    public static final String WEBAC_ACCESSTO_CLASS_VALUE = WEBAC_NAMESPACE_VALUE + &quot;accessToClass&quot;;
+<span class="fc" id="L111">    public static final URI WEBAC_ACCESSTO_CLASS = URI.create(WEBAC_ACCESSTO_CLASS_VALUE);</span>
+
+    /**
+     * WebAC accessControl
+     */
+    public static final String WEBAC_ACCESS_CONTROL_VALUE = WEBAC_NAMESPACE_VALUE + &quot;accessControl&quot;;
+<span class="fc" id="L117">    public static final URI WEBAC_ACCESS_CONTROL = URI.create(WEBAC_ACCESS_CONTROL_VALUE);</span>
+
+    /**
+     * WebAC mode
+     */
+    public static final String WEBAC_MODE_VALUE = WEBAC_NAMESPACE_VALUE + &quot;mode&quot;;
+<span class="fc" id="L123">    public static final URI WEBAC_MODE = URI.create(WEBAC_MODE_VALUE);</span>
+
+    /**
+     * FOAF Namespace
+     */
+    public static final String FOAF_NAMESPACE_VALUE = &quot;http://xmlns.com/foaf/0.1/&quot;;
+<span class="fc" id="L129">    public static final URI FOAF_NAMESPACE = URI.create(FOAF_NAMESPACE_VALUE);</span>
+
+    /**
+     * FOAF Agent
+     */
+    public static final String FOAF_AGENT_VALUE = FOAF_NAMESPACE_VALUE + &quot;Agent&quot;;
+<span class="fc" id="L135">    public static final URI FOAF_AGENT = URI.create(FOAF_AGENT_VALUE);</span>
+
+    /**
+     * FOAF member
+     */
+    public static final String FOAF_MEMBER_VALUE = FOAF_NAMESPACE_VALUE + &quot;member&quot;;
+<span class="fc" id="L141">    public static final URI FOAF_MEMBER = URI.create(FOAF_MEMBER_VALUE);</span>
+
+    /**
+     * FOAF Group
+     */
+    public static final String FOAF_GROUP_VALUE = FOAF_NAMESPACE_VALUE + &quot;Group&quot;;
+<span class="fc" id="L147">    public static final URI FOAF_GROUP = URI.create(FOAF_GROUP_VALUE);</span>
+
+
+    /**
+     * Fedora WebAC Namespace
+     */
+    public static final String FEDORA_WEBAC_NAMESPACE_VALUE = &quot;http://fedora.info/definitions/v4/webac#&quot;;
+<span class="fc" id="L154">    public static final URI FEDORA_WEBAC_NAMESPACE = URI.create(FEDORA_WEBAC_NAMESPACE_VALUE);</span>
+
+    /**
+     * Fedora ACL
+     */
+    public static final String FEDORA_WEBAC_ACL_VALUE = FEDORA_WEBAC_NAMESPACE_VALUE + &quot;Acl&quot;;
+<span class="fc" id="L160">    public static final URI FEDORA_WEBAC_ACL = URI.create(FEDORA_WEBAC_ACL_VALUE);</span>
+
+<span class="nc" id="L162">    private URIConstants() {</span>
+<span class="nc" id="L163">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>
